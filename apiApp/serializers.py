@@ -44,23 +44,11 @@ class CartSerializer(serializers.ModelSerializer):
     cart_total = serializers.SerializerMethodField()
     class Meta:
         model = Cart
-        fields = ['id' , 'cart_code' , 'cartitems' , 'sub_total' , 'cart_total']
+        fields = ['id' , 'cart_code' , 'cartitems'  , 'cart_total']
 
     def get_cart_total(self , cart):
         items = cart.cartitems.all()
         total = sum([item.quantity * item.product.price for item in items])
-        return total
-    
-
-class CartStatSerializer(serializers.ModelSerializer):
-    total_quantity = serializers.SerializerMethodField()
-    class Meta:
-        model = Cart
-        fields = ['id' , 'cart_code' , 'total_quantity' , 'sub_total' , 'cart_total']
-
-    def get_total_quantity(self , cart):
-        items = cart.cartitems.all()
-        total = sum([item.quantity for item in items])
         return total
 
 

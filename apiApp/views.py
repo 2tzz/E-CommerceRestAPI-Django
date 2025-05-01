@@ -43,11 +43,13 @@ def add_to_cart(request):
     cart_code = request.data.get('cart_code')
     product_id = request.data.get('product_id')
 
+    try:
+        product = Product.objects.get(id=product_id)
+    except Product.DoesNotExist:
+        return Response({'error': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
+
     cart, created = Cart.objects.get_or_create(cart_code=cart_code)
-    product = Product.objects.get(id=product_id)
-
-
-    cartitem,created = CartItem.objects.get_or_create(product=product , cart=cart)
+    cartitem, created = CartItem.objects.get_or_create(product=product, cart=cart)
     cartitem.quantity = 1
     cartitem.save()
 
