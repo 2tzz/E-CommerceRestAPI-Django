@@ -81,7 +81,8 @@ class Review(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.user}' review on {self.product.name}"
+        return f"{self.user.username}' review on {self.product.name}"
+    
     class Meta :
         unique_together = ['user' , 'product']
         ordering = ['created']
@@ -95,4 +96,3 @@ class ProductRating(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.average_rating} ({self.total_reviews} reviews)"
 
-    
