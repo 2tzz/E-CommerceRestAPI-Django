@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from .models import Cart, CartItem, Product, Category , Review, Wishlist
 from .serializers import WishListSerializer , ReviewSerializer, CartSerializer, ProductListSerializer , ProductDetailSerializer , CategoryListSerializer , CategoryDetailSerializer , CartItemSerializer
-
+from django.db.models import Q
 # Create your views here.
 
 User = get_user_model()
@@ -148,23 +148,71 @@ def delete_review(request , pk):
     review.delete()
 
 
-    return Response("Review Deleted Sucessfully" , status=status.HTTP_404_NOT_FOUND)
+    return Response("Review Deleted Sucessfully" , status=status.HTTP_200_OK)
+
+@api_view(['DELETE'])
+def delete_cartitem(request , pk):
+    cartitem = CartItem.objects.get(id=pk)
+    cartitem.delete()
+
+
+    return Response("Cartitem Deleted Sucessfully" , status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
 def add_to_wishlist(request):
-    email = request.beta.get('email')
-    product_id = request.data.get('product_id')
+    # Get parameters from both request.data (body) and query_params (URL)
+    email = request.data.get('email') or request.query_params.get('email')
+    product_id = request.data.get('product_id') or request.query_params.get('product_id')
+
+    if not email or not product_id:
+        return Response(
+            {'error': 'Both email and product_id are required.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        user = User.objects.get(email=email)
+        product = Product.objects.get(id=product_id)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'User not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Product.DoesNotExist:
+        return Response(
+            {'error': 'Product not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Check if product already in wishlist
+    if Wishlist.objects.filter(user=user, product=product).exists():
+        return Response(
+            {'error': 'Product already in wishlist.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Add to wishlist
+    wishlist_item = Wishlist.objects.create(user=user, product=product)
+    serializer = WishListSerializer(wishlist_item)
+    
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-    user = User.objects.get(email=email)
-    product = Product.objects.get(id=product_id)
 
-    wishlist = Wishlist.objects.filter(user = user , product = product)
-    if wishlist:
-        wishlist.delete()
-        return Response('wishlist deleted sucessfully!' , status=204)
-
-    new_wishlist = Wishlist.objects.filter(user=user , product=product)
-    serializer = WishListSerializer(new_wishlist)
+@api_view(['GET'])
+def product_search(request):  # Fixed spelling of 'request'
+    query = request.query_params.get('query')  # Correct spelling of 'query_params' and 'query'
+    if not query:
+        return Response("No query provided", status=status.HTTP_400_BAD_REQUEST)
+    
+    products = Product.objects.filter(
+        Q(name__icontains=query) |
+        Q(description__icontains=query) |
+        Q(category__name__icontains=query)
+    )
+    
+    serializer = ProductListSerializer(products, many=True)
     return Response(serializer.data)
+
+
