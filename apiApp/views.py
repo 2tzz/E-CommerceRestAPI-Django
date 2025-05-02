@@ -3,8 +3,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from .models import Cart, CartItem, Product, Category , Review
-from .serializers import ReviewSerializer, CartSerializer, ProductListSerializer , ProductDetailSerializer , CategoryListSerializer , CategoryDetailSerializer , CartItemSerializer
+from .models import Cart, CartItem, Product, Category , Review, Wishlist
+from .serializers import WishListSerializer , ReviewSerializer, CartSerializer, ProductListSerializer , ProductDetailSerializer , CategoryListSerializer , CategoryDetailSerializer , CartItemSerializer
 
 # Create your views here.
 
@@ -120,13 +120,22 @@ def add_review(request):
 
 
 @api_view(['PUT'])
-def update_review(request , pk):
-    review = Review.objects.get(id=pk)
-    rating = request.data.get('rating')
-    review = request.data.get('review')
+def update_review(request, pk):
+    try:
+        review = Review.objects.get(id=pk)
+    except Review.DoesNotExist:
+        return Response({'error': 'Review not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Check both request.data (for form/json body) and query_params (for URL params)
+    rating = request.data.get('rating') or request.query_params.get('rating')
+    review_text = request.data.get('review') or request.query_params.get('review')
+
+    if not rating:
+        return Response({'error': 'Rating is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     review.rating = rating
-    review.review = review
+    if review_text:  # review text is optional for update
+        review.review = review_text
     review.save()
 
     serializer = ReviewSerializer(review)
@@ -140,3 +149,22 @@ def delete_review(request , pk):
 
 
     return Response("Review Deleted Sucessfully" , status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+def add_to_wishlist(request):
+    email = request.beta.get('email')
+    product_id = request.data.get('product_id')
+
+
+    user = User.objects.get(email=email)
+    product = Product.objects.get(id=product_id)
+
+    wishlist = Wishlist.objects.filter(user = user , product = product)
+    if wishlist:
+        wishlist.delete()
+        return Response('wishlist deleted sucessfully!' , status=204)
+
+    new_wishlist = Wishlist.objects.filter(user=user , product=product)
+    serializer = WishListSerializer(new_wishlist)
+    return Response(serializer.data)
